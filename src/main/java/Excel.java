@@ -157,11 +157,6 @@ public class Excel {
             cell.setCellValue(columns[i]);
             cell.setCellStyle(headerCellStyle);
         }
-
-        // Create Cell Style for formatting Date
-        CellStyle dateCellStyle = workbook.createCellStyle();
-        dateCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd-MM-yyyy"));
-
         // Create Other rows and cells with employees data
         int rowNum = 1;
         for(RowData data: listVariableTotalProcess) {
