@@ -17,27 +17,37 @@ public class ApachePOI {
     public static List<EventReutilizable> listEventReu = new ArrayList<>();
     public static boolean existEvents=false;
     public static boolean existReutilizable=false;
-    public  static List<RowData> rowData;
+    public  static List<RowData> listRowData;
+    public  static List<DataDescription> listDataDescription;
+    public  static PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
 
-    public static void main(String...arg ) throws IOException {
+    public static void main(String...arg ){
+
 
         listEventReu.add(new EventReutilizable()
-                .code("HAC_ACJ")
+                .code("CON_CDC")
                 .name("Aprobación cuentas justificativas de subvenciones"));
 
-        PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
+        //PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
+        //listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\informe_plantillas.xlsx"), RowData.class, options);
 
-        rowData = Poiji.fromExcel(new File("informe_plantillas.xlsx"), RowData.class, options);
+        //eventReutilizable();
+        //addOtherEventsAndReutilizable();
+        //listEventReu.forEach(o->System.out.println(""+o.toString()));
+        //filter();
+        extractDescription();
 
-        eventReutilizable();
-        addOtherEventsAndReutilizable();
-        filter();
+    }
 
+    private static void extractDescription(){
+
+        listDataDescription = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\Diccionario_variables.xlsx"), DataDescription.class, options);
+        System.out.print(listDataDescription.size());
     }
 
     private static void  eventReutilizable() throws IOException {
 
-        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("HAC_ACJ.pptx"));
+        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.1.Contratación\\CON_CDC\\CON_CDC.pptx"));
         Observable.fromIterable(ppt.getSlides())
                 .map(a->Observable
                         .fromIterable(a.getShapes())
@@ -90,7 +100,7 @@ public class ApachePOI {
 
     private static void filter() {
 
-        Flux.fromIterable(rowData)
+        Flux.fromIterable(listRowData)
                 .filter(r -> listEventReu
                         .stream()
                         .anyMatch(l -> l.code()
@@ -101,8 +111,5 @@ public class ApachePOI {
 
 
     }
-
-
-
 
 }

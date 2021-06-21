@@ -31,7 +31,6 @@
             <artifactId>reactor-core</artifactId>
             <version>3.4.6</version>
         </dependency>
-
         <dependency>
             <groupId>io.reactivex.rxjava2</groupId>
             <artifactId>rxjava</artifactId>
