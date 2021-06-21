@@ -1,45 +1,29 @@
-import lombok.Getter;
-import lombok.Setter;
+import com.poiji.annotation.ExcelCell;
+import com.poiji.annotation.ExcelSheet;
+import lombok.*;
 import lombok.experimental.Accessors;
 
 @Getter
-@Setter@Accessors(fluent = true)
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
+@ExcelSheet("RAW_DATA")
 public class RowData {
 
+    @ExcelCell(0)
     private String family;
-    private String typeProReuEve;
-    private String template;
+
+    @ExcelCell(1)
+    private String procReuEve;
+
+    @ExcelCell(2)
+    private String plantilla;
+
+    @ExcelCell(3)
     private String variable;
-    private Boolean jooScript;
 
-    public String getFamily() {
-        return family;
-    }
+    @ExcelCell(4)
+    private String jooScript;
 
-    public String getTypeProReuEve() {
-        return typeProReuEve;
-    }
-
-    public String getTemplate() {
-        return template;
-    }
-
-    public String getVariable() {
-        return variable;
-    }
-
-    public Boolean getJooScript() {
-        return jooScript;
-    }
-
-    @Override
-    public String toString() {
-        return "RowData{" +
-                "family='" + family + '\'' +
-                ", typeProReuEve='" + typeProReuEve + '\'' +
-                ", template='" + template + '\'' +
-                ", variable='" + variable + '\'' +
-                ", jooScript=" + jooScript +
-                '}';
-    }
 }
