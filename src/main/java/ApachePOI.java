@@ -10,71 +10,79 @@ import reactor.core.publisher.Flux;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
 public class ApachePOI {
 
     public static List<EventReutilizable> listEventReu = new ArrayList<>();
+    public static List<VariableEvitar>listVariEvit= new ArrayList<>();
     public static boolean existEvents=false;
     public static boolean existReutilizable=false;
     public  static List<RowData> listRowData;
+    public static List<RowData> listFilter = new ArrayList<>(); 
     public  static List<DataDescription> listDataDescription;
     public  static PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
 
-    public static void main(String...arg ){
+    public static void main(String...arg ) throws IOException {
 
 
         listEventReu.add(new EventReutilizable()
-                .code("CON_CDC")
+                .code("HAC_ACJ")
                 .name("Aprobación cuentas justificativas de subvenciones"));
 
         //PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
-        //listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\informe_plantillas.xlsx"), RowData.class, options);
+        listRowData = Poiji.fromExcel(new File("informe_plantillas.xlsx"), RowData.class, options);
 
-        //eventReutilizable();
-        //addOtherEventsAndReutilizable();
-        //listEventReu.forEach(o->System.out.println(""+o.toString()));
-        //filter();
+        eventReutilizable();
+        readVariableEvitar();
+        addOtherEventsAndReutilizable();
+        listEventReu.forEach(o->System.out.println(""+o.toString()));
+        filter();
         extractDescription();
-        readTemplates();
+        filterAdvanced();
+        System.out.println(listFilter.size());
+       // readTemplates();
 
     }
+    private static void readVariableEvitar(){
+        listVariEvit = Poiji.fromExcel(new File("Variables a evitar.xlsx"), VariableEvitar.class, options);
+       System.out.println(listVariEvit.size());
+    }
+
     private static  void readTemplates() {
 
         //set path of file
-        File file = new File("C:\\Users\\jquipsec\\Documents\\cep@l\\7.1.Contratación\\CON_CDC\\CON_CDC");
+        File file = new File("C:\\Users\\Jose\\Workspace - Developer\\Java\\Cep@l\\Cep@l - Formularios\\cepal-formulario\\7.2.Hacienda\\HAC_ACJ\\HAC_ACJ");
         String[] list = file.list();
 
-        listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Desktop\\informe_plantillas.xlsx"), RowData.class, options);
+        listRowData = Poiji.fromExcel(new File("informe_plantillas.xlsx"), RowData.class, options);
 
         //RxJava
-        Observable.fromIterable(listRowData).map(r -> {
+        Disposable subscribe = Observable.fromIterable(listRowData).map(r -> {
+            assert list != null;
             for (String data : list) {
                 String[] arrOfStr = data.split("\\.");
-                if (r.getPlantilla().endsWith(arrOfStr[1])) {
-                    r.setOrder(Integer.parseInt(arrOfStr[0]));
+                if (r.plantilla().endsWith(arrOfStr[1])) {
+                    r.order(Integer.parseInt(arrOfStr[0]));
                 }
             }
             return r;
-        })
-                .subscribe(t->System.out.println(t.getFamily()+", "+t.getProcReuEve()+", "+t.getPlantilla()+", "+t.getVariable()+", "+t.getJooScript()+", "+t.getOrder()));
+        }).subscribe();
 
     }
 
-
     private static void extractDescription(){
 
-        listDataDescription = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\Diccionario_variables.xlsx"), DataDescription.class, options);
+        listDataDescription = Poiji.fromExcel(new File("Diccionario_variables.xlsx"), DataDescription.class, options);
         //System.out.print(listDataDescription.size());
     }
 
     private static void  eventReutilizable() throws IOException {
 
-        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.1.Contratación\\CON_CDC\\CON_CDC.pptx"));
+        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\Jose\\Workspace - Developer\\Java\\Cep@l\\Cep@l - Formularios\\cepal-formulario\\7.2.Hacienda\\HAC_ACJ\\HAC_ACJ.pptx"));
         Observable.fromIterable(ppt.getSlides())
                 .map(a->Observable
                         .fromIterable(a.getShapes())
@@ -127,14 +135,36 @@ public class ApachePOI {
 
     private static void filter() {
 
-        Flux.fromIterable(listRowData)
+       Flux.fromIterable(listRowData)
                 .filter(r -> listEventReu
                         .stream()
                         .anyMatch(l -> l.code()
-                                .contains(r.getProcReuEve())))
-                .groupBy(RowData::getVariable)
-                .flatMap(Flux::collectList)
-                .subscribe(p->System.out.println("Data: "+p.toString()));
+                                .contains(r.procReuEve())))
+                .filter(t->listVariEvit
+                            .stream()
+                            .noneMatch(y -> y.variable()
+                                    .contains(t.variable()))
+                )
+               .map(y->{
+                   listFilter.add(new RowData()
+                           .family(y.family())
+                           .procReuEve(y.procReuEve())
+                           .plantilla(y.plantilla())
+                           .variable(y.variable())
+                           .jooScript(y.jooScript()));
+                   return y;
+               })
+               .subscribe();
+
+
+    }
+
+    private static void filterAdvanced(){
+
+        Map<String, List<RowData>> groupByVariable =
+                listFilter.stream().collect(Collectors.groupingBy(RowData::variable));
+        System.out.println(groupByVariable.size());
+
 
 
     }
