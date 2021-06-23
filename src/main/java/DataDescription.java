@@ -22,4 +22,6 @@ public class DataDescription {
     @ExcelCell(4)
     private String categorizacion;
 
+
+
 }

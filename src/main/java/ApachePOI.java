@@ -2,6 +2,7 @@
 import com.poiji.bind.Poiji;
 import com.poiji.option.PoijiOptions;
 import io.reactivex.Observable;
+import io.reactivex.disposables.Disposable;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.apache.poi.xslf.usermodel.XSLFGroupShape;
 import org.apache.poi.xslf.usermodel.XSLFTextShape;
@@ -9,7 +10,10 @@ import reactor.core.publisher.Flux;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 
 public class ApachePOI {
@@ -36,13 +40,36 @@ public class ApachePOI {
         //listEventReu.forEach(o->System.out.println(""+o.toString()));
         //filter();
         extractDescription();
+        readTemplates();
 
     }
+    private static  void readTemplates() {
+
+        //set path of file
+        File file = new File("C:\\Users\\jquipsec\\Documents\\cep@l\\7.1.Contratación\\CON_CDC\\CON_CDC");
+        String[] list = file.list();
+
+        listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Desktop\\informe_plantillas.xlsx"), RowData.class, options);
+
+        //RxJava
+        Observable.fromIterable(listRowData).map(r -> {
+            for (String data : list) {
+                String[] arrOfStr = data.split("\\.");
+                if (r.getPlantilla().endsWith(arrOfStr[1])) {
+                    r.setOrder(Integer.parseInt(arrOfStr[0]));
+                }
+            }
+            return r;
+        })
+                .subscribe(t->System.out.println(t.getFamily()+", "+t.getProcReuEve()+", "+t.getPlantilla()+", "+t.getVariable()+", "+t.getJooScript()+", "+t.getOrder()));
+
+    }
+
 
     private static void extractDescription(){
 
         listDataDescription = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\Diccionario_variables.xlsx"), DataDescription.class, options);
-        System.out.print(listDataDescription.size());
+        //System.out.print(listDataDescription.size());
     }
 
     private static void  eventReutilizable() throws IOException {

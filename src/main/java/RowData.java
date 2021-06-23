@@ -8,7 +8,8 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
-@ExcelSheet("RAW_DATA")
+//@ExcelSheet("RAW_DATA")
+@ExcelSheet("Hoja2")
 public class RowData {
 
     @ExcelCell(0)
@@ -25,5 +26,7 @@ public class RowData {
 
     @ExcelCell(4)
     private String jooScript;
+
+    private Integer order;
 
 }
