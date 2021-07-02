@@ -3,46 +3,73 @@ import com.poiji.bind.Poiji;
 import com.poiji.option.PoijiOptions;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
-import org.apache.poi.xslf.usermodel.XMLSlideShow;
-import org.apache.poi.xslf.usermodel.XSLFGroupShape;
-import org.apache.poi.xslf.usermodel.XSLFTextShape;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xslf.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import reactor.core.publisher.Flux;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 public class ApachePOI {
 
     public static List<EventReutilizable> listEventReu = new ArrayList<>();
+
+    public static List<String> listVariEvit = new ArrayList<>();
     public static boolean existEvents=false;
     public static boolean existReutilizable=false;
-    public  static List<RowData> listRowData;
+    public  static List<RowData> listRowData ;
+    public  static List<RowData> listRowDataFilter = new ArrayList<>();
     public  static List<DataDescription> listDataDescription;
     public  static PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
+    public static String process = "PER_CAR";
 
-    public static void main(String...arg ){
+    public static void main(String...arg ) throws IOException {
+
+
 
 
         listEventReu.add(new EventReutilizable()
-                .code("CON_CDC")
+                .code(process)
                 .name("Aprobación cuentas justificativas de subvenciones"));
 
         //PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
-        //listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\informe_plantillas.xlsx"), RowData.class, options);
+        listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\informe_plantillas.xlsx"), RowData.class, options);
 
-        //eventReutilizable();
-        //addOtherEventsAndReutilizable();
-        //listEventReu.forEach(o->System.out.println(""+o.toString()));
-        //filter();
-        extractDescription();
-        readTemplates();
+        variablesEvitar();
+        eventReutilizable();
+        listEventReu.forEach(o->System.out.println(""+o.toString()));
+        filter();
+        listRowDataFilter.forEach(System.out::println);
+        order();
+
 
     }
+
+    private static void variablesEvitar() throws IOException {
+
+
+        File file = new File("C:\\Users\\jquipsec\\Documents\\Workspace - Jose\\Developer\\Java\\Cep@l\\appFilterVariables\\cepal-formulario\\Variables a evitar.xlsx");
+        FileInputStream inputStream = new FileInputStream(new File(String.valueOf(file)));
+
+        Workbook workbook = new XSSFWorkbook(inputStream);
+        Sheet firstSheet = workbook.getSheetAt(0);
+        Iterator<Row> iterator = firstSheet.iterator();
+
+        while (iterator.hasNext()) {
+            Row nextRow = iterator.next();
+            Iterator<Cell> cellIterator = nextRow.cellIterator();
+            Cell cell = cellIterator.next();
+            listVariEvit.add(cell.getStringCellValue());
+        }
+
+        workbook.close();
+        inputStream.close();
+    }
+
     private static  void readTemplates() {
 
         //set path of file
@@ -53,6 +80,7 @@ public class ApachePOI {
 
         //RxJava
         Observable.fromIterable(listRowData).map(r -> {
+            assert list != null;
             for (String data : list) {
                 String[] arrOfStr = data.split("\\.");
                 if (r.getPlantilla().endsWith(arrOfStr[1])) {
@@ -65,7 +93,6 @@ public class ApachePOI {
 
     }
 
-
     private static void extractDescription(){
 
         listDataDescription = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\Diccionario_variables.xlsx"), DataDescription.class, options);
@@ -74,7 +101,7 @@ public class ApachePOI {
 
     private static void  eventReutilizable() throws IOException {
 
-        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.1.Contratación\\CON_CDC\\CON_CDC.pptx"));
+        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.4.Personal\\PER_CAR\\PER_CAR.pptx"));
         Observable.fromIterable(ppt.getSlides())
                 .map(a->Observable
                         .fromIterable(a.getShapes())
@@ -101,6 +128,7 @@ public class ApachePOI {
                         .subscribe()
                 )
                 .subscribe();
+
     }
 
     private static void addEventReutilizable(String[]r){
@@ -126,15 +154,45 @@ public class ApachePOI {
     }
 
     private static void filter() {
+        String processSolicitud = process+"_SIN_Solicitud_interesado";
 
         Flux.fromIterable(listRowData)
                 .filter(r -> listEventReu
                         .stream()
                         .anyMatch(l -> l.code()
-                                .contains(r.getProcReuEve())))
-                .groupBy(RowData::getVariable)
-                .flatMap(Flux::collectList)
-                .subscribe(p->System.out.println("Data: "+p.toString()));
+                                .contains(r.getProcReuEve()))
+                ).
+                filter(r->listVariEvit
+                        .stream()
+                        .noneMatch(l -> l
+                                .equals(r.getVariable())))
+                .filter(o->!processSolicitud.equals(o.getPlantilla()))
+                .map(o -> {
+                    RowData data = new RowData();
+                    data.setFamily(o.getFamily());
+                    data.setProcReuEve(o.getProcReuEve());
+                    data.setPlantilla(o.getPlantilla());
+                    data.setVariable(o.getVariable());
+                    data.setJooScript(o.getJooScript());
+                    listRowDataFilter.add(data);
+                    return o;
+                })
+                //.groupBy(RowData::getVariable)
+                //.flatMap(Flux::collectList)
+                .subscribe();
+
+
+
+
+    }
+
+    private static void order()
+    {
+
+        Map<String, List<RowData>> noOfStocksByName = listRowDataFilter.stream()
+                .collect(Collectors.groupingBy(RowData::getVariable));
+
+        System.out.println(noOfStocksByName);
 
 
     }
