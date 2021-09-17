@@ -5,6 +5,7 @@ import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xslf.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import reactor.core.publisher.Flux;
 
@@ -17,7 +18,6 @@ import java.util.stream.Stream;
 public class ApachePOI {
 
     public static List<EventReutilizable> listEventReu = new ArrayList<>();
-
     public static List<String> listVariEvit = new ArrayList<>();
     public static boolean existEvents=false;
     public static boolean existReutilizable=false;
@@ -25,34 +25,104 @@ public class ApachePOI {
     public  static List<RowData> listRowDataFilter = new ArrayList<>();
     public  static List<DataDescription> listDataDescription;
     public  static PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
-    public static String process = "PER_CAR";
+    public static String process = "PUB_AAE";
+    public static String[] columns = {"Familia", "Proc / Reu / Eve", "Plantilla", "Variable","JooScript","Orden"};
+
 
     public static void main(String...arg ) throws IOException {
 
-
-
-
         listEventReu.add(new EventReutilizable()
                 .code(process)
-                .name("Aprobación cuentas justificativas de subvenciones"));
+                .name("Actuaciones municipales para municipalización de una actividad económica"));
 
         //PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
         listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\informe_plantillas.xlsx"), RowData.class, options);
 
         variablesEvitar();
         eventReutilizable();
+        addOtherEventsAndReutilizable();
         listEventReu.forEach(o->System.out.println(""+o.toString()));
         filter();
+        System.out.println("==============================");
         listRowDataFilter.forEach(System.out::println);
-        order();
+        writeData();
+        //order();
+    }
 
+    private static void writeData() throws IOException {
+        // Create a Workbook
+        Workbook workbook = new XSSFWorkbook(); // new HSSFWorkbook() for generating `.xls` file
+
+        /* CreationHelper helps us create instances of various things like DataFormat,
+           Hyperlink, RichTextString etc, in a format (HSSF, XSSF) independent way */
+        CreationHelper createHelper = workbook.getCreationHelper();
+
+        // Create a Sheet
+        Sheet sheet = workbook.createSheet("Filter");
+
+        // Create a Font for styling header cells
+        Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        headerFont.setFontHeightInPoints((short) 14);
+        headerFont.setColor(IndexedColors.RED.getIndex());
+
+        // Create a CellStyle with the font
+        CellStyle headerCellStyle = workbook.createCellStyle();
+        headerCellStyle.setFont(headerFont);
+
+        // Create a Row
+        Row headerRow = sheet.createRow(0);
+
+        // Create cells
+        for(int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerCellStyle);
+        }
+
+        // Create Cell Style for formatting Date
+        CellStyle dateCellStyle = workbook.createCellStyle();
+        dateCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd-MM-yyyy"));
+
+        // Create Other rows and cells with employees data
+        int rowNum = 1;
+        for(RowData rowData: listRowDataFilter) {
+            Row row = sheet.createRow(rowNum++);
+
+            row.createCell(0)
+                    .setCellValue(rowData.getFamily());
+
+            row.createCell(1)
+                    .setCellValue(rowData.getProcReuEve());
+            row.createCell(2)
+                    .setCellValue(rowData.getPlantilla());
+            row.createCell(3)
+                    .setCellValue(rowData.getVariable());
+            row.createCell(4)
+                    .setCellValue(rowData.getJooScript());
+
+        }
+
+        // Resize all columns to fit the content size
+        for(int i = 0; i < columns.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+
+        // Write the output to a file
+        FileOutputStream fileOut = new FileOutputStream("filter.xlsx");
+        workbook.write(fileOut);
+        fileOut.close();
+
+        // Closing the workbook
+        workbook.close();
 
     }
+
 
     private static void variablesEvitar() throws IOException {
 
 
-        File file = new File("C:\\Users\\jquipsec\\Documents\\Workspace - Jose\\Developer\\Java\\Cep@l\\appFilterVariables\\cepal-formulario\\Variables a evitar.xlsx");
+        File file = new File("C:\\Users\\jquipsec\\Documents\\Workspace - Jose\\Developer\\Java\\Cep@l\\cepal-formulario\\Variables a evitar.xlsx");
         FileInputStream inputStream = new FileInputStream(new File(String.valueOf(file)));
 
         Workbook workbook = new XSSFWorkbook(inputStream);
@@ -73,7 +143,7 @@ public class ApachePOI {
     private static  void readTemplates() {
 
         //set path of file
-        File file = new File("C:\\Users\\jquipsec\\Documents\\cep@l\\7.1.Contratación\\CON_CDC\\CON_CDC");
+        File file = new File("C:\\Users\\jquipsec\\Documents\\cep@l\\7.10.Servicios públicos\\PUB_AAE\\PUB_AAE");
         String[] list = file.list();
 
         listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Desktop\\informe_plantillas.xlsx"), RowData.class, options);
@@ -101,7 +171,7 @@ public class ApachePOI {
 
     private static void  eventReutilizable() throws IOException {
 
-        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.4.Personal\\PER_CAR\\PER_CAR.pptx"));
+        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.10.Servicios públicos\\PUB_AAE\\PUB_AAE.pptx"));
         Observable.fromIterable(ppt.getSlides())
                 .map(a->Observable
                         .fromIterable(a.getShapes())
