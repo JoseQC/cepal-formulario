@@ -2,17 +2,22 @@
 import com.poiji.bind.Poiji;
 import com.poiji.option.PoijiOptions;
 import io.reactivex.Observable;
-import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Function;
+import io.reactivex.functions.Predicate;
+import org.apache.poi.sl.extractor.SlideShowExtractor;
+import org.apache.poi.sl.usermodel.SlideShow;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xslf.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import static java.util.Arrays.asList;
 
 
 public class ApachePOI {
@@ -25,28 +30,79 @@ public class ApachePOI {
     public  static List<RowData> listRowDataFilter = new ArrayList<>();
     public  static List<DataDescription> listDataDescription;
     public  static PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
-    public static String process = "PUB_AAE";
+    public static String process = "PUB_LPP";
     public static String[] columns = {"Familia", "Proc / Reu / Eve", "Plantilla", "Variable","JooScript","Orden"};
-
+    public static List<String> noti = asList("EVE_EVE_NOA_Notificacion_acuerdo",
+            "EVE_EVE_NOR_Notificacion_resolucion",
+            "MOD_REU_NOA_Notificacion_acuerdo",
+            "MOD_REU_NOR_Notificacion_resolucion");
+    public static List<String> filters=new ArrayList<>();
 
     public static void main(String...arg ) throws IOException {
 
         listEventReu.add(new EventReutilizable()
                 .code(process)
-                .name("Actuaciones municipales para municipalización de una actividad económica"));
+                .name("Solicitud de permiso de tenencia de animales potencialmente peligrosos"));
 
         //PoijiOptions options = PoijiOptions.PoijiOptionsBuilder.settings().build();
-        listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Documents\\cep@l\\informe_plantillas.xlsx"), RowData.class, options);
+        listRowData = Poiji.fromExcel(new File("x|cuments\\cep@l\\informe_plantillas.xlsx"), RowData.class, options);
 
         variablesEvitar();
         eventReutilizable();
         addOtherEventsAndReutilizable();
         listEventReu.forEach(o->System.out.println(""+o.toString()));
+        getMetaDataPptx();
         filter();
         System.out.println("==============================");
         listRowDataFilter.forEach(System.out::println);
+        System.out.println("==============================");
+        getVisivilityDatosExpAndNoti();
         writeData();
         //order();
+    }
+
+    public static void getVisivilityDatosExpAndNoti(){
+
+
+        Flux.fromIterable(listRowDataFilter)
+                .distinct(RowData::getPlantilla).subscribe(r->System.out.println(r.getPlantilla()));
+
+
+    }
+    public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
+        Set<Object> seen = ConcurrentHashMap.newKeySet();
+        return t -> seen.add(keyExtractor.apply(t));
+    }
+
+    public static void getMetaDataPptx() throws IOException {
+        SlideShow<XSLFShape,XSLFTextParagraph> slideshow
+                = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.10.Servicios públicos\\PUB_LPP\\PUB_LPP.pptx"));
+
+        SlideShowExtractor<XSLFShape,XSLFTextParagraph> slideShowExtractor
+                = new SlideShowExtractor<XSLFShape,XSLFTextParagraph>(slideshow);
+        slideShowExtractor.setCommentsByDefault(true);
+        slideShowExtractor.setMasterByDefault(true);
+        slideShowExtractor.setNotesByDefault(true);
+
+        String allTextContentInSlideShow = slideShowExtractor.getText();
+
+        boolean solicitud = allTextContentInSlideShow.contains("MOD_REU_NOA_Notificacion_acuerdo");
+
+
+
+        for(String str : noti)
+        {
+            if (!allTextContentInSlideShow.contains(str))
+            {
+                filters.add(str);
+            }
+        }
+
+        System.out.println("size:"+filters);
+
+
+
+
     }
 
     private static void writeData() throws IOException {
@@ -118,7 +174,6 @@ public class ApachePOI {
 
     }
 
-
     private static void variablesEvitar() throws IOException {
 
 
@@ -143,7 +198,7 @@ public class ApachePOI {
     private static  void readTemplates() {
 
         //set path of file
-        File file = new File("C:\\Users\\jquipsec\\Documents\\cep@l\\7.10.Servicios públicos\\PUB_AAE\\PUB_AAE");
+        File file = new File("C:\\Users\\jquipsec\\Documents\\cep@l\\7.10.Servicios públicos\\PUB_LPP\\PUB_LPP");
         String[] list = file.list();
 
         listRowData = Poiji.fromExcel(new File("C:\\Users\\jquipsec\\Desktop\\informe_plantillas.xlsx"), RowData.class, options);
@@ -171,7 +226,7 @@ public class ApachePOI {
 
     private static void  eventReutilizable() throws IOException {
 
-        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.10.Servicios públicos\\PUB_AAE\\PUB_AAE.pptx"));
+        XMLSlideShow ppt = new XMLSlideShow(new FileInputStream("C:\\Users\\jquipsec\\Documents\\cep@l\\7.10.Servicios públicos\\PUB_LPP\\PUB_LPP.pptx"));
         Observable.fromIterable(ppt.getSlides())
                 .map(a->Observable
                         .fromIterable(a.getShapes())
@@ -224,9 +279,12 @@ public class ApachePOI {
     }
 
     private static void filter() {
-        String processSolicitud = process+"_SIN_Solicitud_interesado";
+        String processSolicitud = process+"_SIN_Solicitud";
 
         Flux.fromIterable(listRowData)
+                .filter(t-> filters.stream()
+                        .noneMatch(l -> l
+                                .contains(t.getPlantilla())))
                 .filter(r -> listEventReu
                         .stream()
                         .anyMatch(l -> l.code()
